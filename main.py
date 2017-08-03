@@ -1,9 +1,65 @@
 # DoolinNoise
-
+#JE7IO792LHC3VYS5
 
 ## ----------------------- Part 1 ---------------------------- ##
 import numpy as np
+import urllib.request
 from numpy import genfromtxt
+from tinydb import TinyDB, Query
+#!/usr/bin/python3
+
+import PyMySQL
+
+#import for matplotlib
+import matplotlib
+matplotlib.use("TkAgg")
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
+from matplotlib.figure import Figure
+import matplotlib.animation as animation
+from matplotlib import style
+
+#import tkinter
+import tkinter as tk
+from tkinter import ttk
+
+import ssl
+ctx = ssl.create_default_context()
+ctx.check_hostname = False
+ctx.verify_mode = ssl.CERT_NONE
+
+index = input("Tell me stock Acronym UPPER LETTER: ")
+if (index != ''):
+    file_name = index + '5min.csv'
+    stock_url = 'https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=' + index + '&interval=5min&apikey=JE7IO792LHC3VYS5&datatype=csv'
+    with urllib.request.urlopen(stock_url, context=ctx) as u, open('database/'+file_name, 'wb') as f:
+        f.write(u.read())
+
+#https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=AAPL&interval=5min&outputsize=full&apikey=JE7IO792LHC3VYS5
+#import url of stock
+#urllib.request.urlretrieve('http://www.google.com/finance/historical?q=NASDAQ:AAPL&ei=pkaCWZnfMZfRUqDlgaAL&output=csv', 'history.csv')
+
+#urllib.request.urlretrieve('https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=AAPL&interval=5min&outputsize=full&apikey=JE7IO792LHC3VYS5', '/database/aapl15min.csv', context=context)
+
+#database settings
+
+#stock = TinyDB('database/AAPL5min.csv')
+#Data = Query()
+#res = stock.search(Data['Meta Data'].exists())
+#res = stock.all()
+#print(res)
+# Noise Prevision Index - [Previsione:float, Errore:float]
+# mi dice quanto mi sbaglio mediamente
+# indice di misurazione di efficienza dell'algoritmo non inserito
+npi_db = TinyDB('database/npi.json')
+
+#Day Based Index - [Giorno:string, DBI:float]
+# mi dice l'errore medio in un determinato giorno della settimana (Lun-Ven)
+dbi_db = TinyDB('database/dbi.json')
+
+# Month Based Index - [Mese:String, CrescitaPercentuale:float]
+# mi dice la crescita massima attesa in quel mese
+mbi_db = TinyDB('database/mbi.json')
+
 #data elaboration
 mydata = genfromtxt('data.csv', delimiter=',')
 mydata = np.delete(mydata, 0, 1)
@@ -19,8 +75,7 @@ mydata = np.array(mydata, dtype=float)
 outputArr = np.array(outputArr, dtype=float)
 mydata = mydata
 outputArr = outputArr
-print outputArr
-print mydata
+
 #print mydata
 #print "\n output array is: \n"
 #print outputArr
@@ -28,17 +83,30 @@ print mydata
 X = np.array(([100.2, 102, 97, 101.5], [98, 103, 95, 96], [98, 115, 58, 73]), dtype=float)
 y = np.array(([107], [101.5], [96]), dtype=float)
 
+X = mydata
+y = outputArr
 # Normalize
-X = X/np.amax(X, axis=0)
-y = y/107
+recover = np.amax(y)-np.amin(y)
+min_sum = np.amin(y)
+X = (X-np.amin(X))/(np.amax(X)-np.amin(X))
+y = (y-np.amin(y))/(np.amax(y)-np.amin(y))
+
+print (X)
+print (y)
 
 #AAPL data
 #print np.amax(mydata, axis = 0)
 #print np.amax(outputArr, axis = 0)
-recover = np.amax(outputArr, axis = 0)
-X = mydata/np.amax(mydata, axis = 0)
-y = outputArr/np.amax(outputArr, axis = 0)
+
+
+#recover = np.amax(outputArr, axis = 0)
+#X = mydata/np.amax(mydata, axis = 0)
+#y = outputArr/np.amax(outputArr, axis = 0)
+
 #recover = 107
+
+def noise_prevision_index(file):
+    return True
 
 
 ## ----------------------- Part 5 ---------------------------- ##
@@ -48,8 +116,8 @@ class Neural_Network(object):
         #Define Hyperparameters
         self.inputLayerSize = 4
         self.outputLayerSize = 1
-        self.hiddenLayerSize1 = 21
-        self.hiddenLayerSize2 = 17
+        self.hiddenLayerSize1 = 21 #21
+        self.hiddenLayerSize2 = 17 #17
 
         #Weights (parameters)
         self.W1 = np.random.randn(self.inputLayerSize,self.hiddenLayerSize1)
@@ -175,7 +243,7 @@ class trainer(object):
 
         params0 = self.N.getParams()
 
-        options = {'maxiter': 200, 'disp' : True}
+        options = {'maxiter': 10000, 'disp' : True}
         _res = optimize.minimize(self.costFunctionWrapper, params0, jac=True, method='BFGS', \
                                  args=(X, y), options=options, callback=self.callbackF)
 
@@ -192,27 +260,29 @@ if __name__ == "__main__":
     #print "Prima della fase di train \n"
     #print NN.forward(X)
     #print "####################"
-    print NN.forward(X) * recover
-
+    print (NN.forward(X))
     Trainer = trainer(NN)
 
     Trainer.train(X, y)
-    print "Post fase di train \n"
+    print ("Post fase di train \n")
     #print NN.forward(X)
     #print "####################"
-    print NN.forward(X) * recover
+    print (NN.forward(X) * recover + min_sum)
 
-    save_ = raw_input("Wanna Save Weights?[Y/n] ")
+    save_ = input("Want to save Weights?[Y/n] ")
     if (save_ == 'Y' or save_ == 'y'):
-        print "weights exported sucessfully!"
-
-    print "Prediction based on actual Training Session"
-    stockOpenPrice = raw_input("Stock Open Price: ")
-    stockHighPrice = raw_input("Stock High Price: ")
-    stockLowPrice = raw_input("Stock Low Price: ")
-    stockClosePrice = raw_input("Stock Close Price: ")
-    newX = np.array(([stockOpenPrice, stockHighPrice, stockLowPrice, stockClosePrice]), dtype = float)
-    newX = newX/np.amax(newX, axis=0)
-    print NN.forward(newX) * recover
+        np.savetxt("w1.out", NN.W1, delimiter=',')
+        np.savetxt("w2.out", NN.W2, delimiter=',')
+        np.savetxt("w3.out", NN.W3, delimiter=',')
+        print ("weights exported sucessfully!")
+    make_prediction_ = input("Prediction based on actual Training Session?[Y/n] ")
+    if (make_prediction_ == 'y'):
+        stockOpenPrice = input("Stock Open Price: ")
+        stockHighPrice = input("Stock High Price: ")
+        stockLowPrice = input("Stock Low Price: ")
+        stockClosePrice = input("Stock Close Price: ")
+        newX = np.array(([stockOpenPrice, stockHighPrice, stockLowPrice, stockClosePrice]), dtype = float)
+        newX = newX/np.amax(newX, axis=0)
+        print (NN.forward(newX) * recover + min_sum)
 
     #Trainer = trainer()
