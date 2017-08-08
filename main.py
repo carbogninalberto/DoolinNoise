@@ -6,9 +6,10 @@ import numpy as np
 import urllib.request
 from numpy import genfromtxt
 from tinydb import TinyDB, Query
+import sqlite3
 #!/usr/bin/python3
 
-import PyMySQL
+#import PyMySQL
 
 #import for matplotlib
 import matplotlib
@@ -31,6 +32,11 @@ index = input("Tell me stock Acronym UPPER LETTER: ")
 if (index != ''):
     file_name = index + '5min.csv'
     stock_url = 'https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=' + index + '&interval=5min&apikey=JE7IO792LHC3VYS5&datatype=csv'
+    with urllib.request.urlopen(stock_url, context=ctx) as u, open('database/'+file_name, 'wb') as f:
+        f.write(u.read())
+if (index != ''):
+    file_name = index + '5min_SMA.csv'
+    stock_url = 'https://www.alphavantage.co/query?function=SMA&symbol=' + index + '&interval=weekly&time_period=10&series_type=close&apikey=JE7IO792LHC3VYS5&datatype=csv'
     with urllib.request.urlopen(stock_url, context=ctx) as u, open('database/'+file_name, 'wb') as f:
         f.write(u.read())
 
@@ -63,6 +69,7 @@ mbi_db = TinyDB('database/mbi.json')
 #data elaboration
 mydata = genfromtxt('data.csv', delimiter=',')
 mydata = np.delete(mydata, 0, 1)
+volume = mydata
 mydata = np.delete(mydata, 4, 1)
 nrow = mydata.shape[0]-1
 outputArr = np.delete(mydata, nrow, 0)
@@ -71,25 +78,44 @@ outputArr = np.delete(outputArr, 0, 1)
 outputArr = np.delete(outputArr, 0, 1)
 mydata = np.delete(mydata, 0, 0)
 
+volume = np.delete(volume, 0, 1)
+volume = np.delete(volume, 0, 1)
+volume = np.delete(volume, 0, 1)
+volume = np.delete(volume, 0, 1)
+volume = np.delete(volume, 0, 0)
+#volume = volume.transpose()[0]
+
 mydata = np.array(mydata, dtype=float)
 outputArr = np.array(outputArr, dtype=float)
-mydata = mydata
-outputArr = outputArr
+volume = np.array(volume, dtype=float)
+
+print(volume)
 
 #print mydata
 #print "\n output array is: \n"
 #print outputArr
 # X = (hours sleeping, hours studying), y = Score on test
-X = np.array(([100.2, 102, 97, 101.5], [98, 103, 95, 96], [98, 115, 58, 73]), dtype=float)
-y = np.array(([107], [101.5], [96]), dtype=float)
+#X = np.array(([100.2, 102, 97, 101.5], [98, 103, 95, 96], [98, 115, 58, 73]), dtype=float)
+#y = np.array(([107], [101.5], [96]), dtype=float)
 
 X = mydata
 y = outputArr
+X_v = volume
+
+max_x = np.amax(X)
+min_x = np.amin(X)
+max_xv = np.amax(X_v)
+min_xv = np.amin(X_v)
+
 # Normalize
 recover = np.amax(y)-np.amin(y)
 min_sum = np.amin(y)
 X = (X-np.amin(X))/(np.amax(X)-np.amin(X))
+X_v = (X_v-np.amin(X_v))/(np.amax(X_v)-np.amin(X_v))
 y = (y-np.amin(y))/(np.amax(y)-np.amin(y))
+
+print (X.shape, " ", X_v.shape)
+X = np.append(arr=X, values=X_v, axis=1)
 
 print (X)
 print (y)
@@ -110,11 +136,12 @@ def noise_prevision_index(file):
 
 
 ## ----------------------- Part 5 ---------------------------- ##
-
+## 21 - 17 perfetto per la previsione giornaliera
+## 17 - 21 5 mins trading - forse
 class Neural_Network(object):
     def __init__(self):
         #Define Hyperparameters
-        self.inputLayerSize = 4
+        self.inputLayerSize = 5
         self.outputLayerSize = 1
         self.hiddenLayerSize1 = 21 #21
         self.hiddenLayerSize2 = 17 #17
@@ -243,7 +270,7 @@ class trainer(object):
 
         params0 = self.N.getParams()
 
-        options = {'maxiter': 10000, 'disp' : True}
+        options = {'maxiter': 200, 'disp' : True} #BFGS
         _res = optimize.minimize(self.costFunctionWrapper, params0, jac=True, method='BFGS', \
                                  args=(X, y), options=options, callback=self.callbackF)
 
@@ -269,20 +296,41 @@ if __name__ == "__main__":
     #print "####################"
     print (NN.forward(X) * recover + min_sum)
 
-    save_ = input("Want to save Weights?[Y/n] ")
+    save_ = input("Want to save Weights?[y/n] ")
     if (save_ == 'Y' or save_ == 'y'):
         np.savetxt("w1.out", NN.W1, delimiter=',')
         np.savetxt("w2.out", NN.W2, delimiter=',')
         np.savetxt("w3.out", NN.W3, delimiter=',')
         print ("weights exported sucessfully!")
-    make_prediction_ = input("Prediction based on actual Training Session?[Y/n] ")
-    if (make_prediction_ == 'y'):
-        stockOpenPrice = input("Stock Open Price: ")
-        stockHighPrice = input("Stock High Price: ")
-        stockLowPrice = input("Stock Low Price: ")
-        stockClosePrice = input("Stock Close Price: ")
+    make_prediction_ = input("Prediction based on actual Training Session?[y/n] ")
+    if (make_prediction_ == 'y' or make_prediction_ == 'Y'):
+        predValues = input("Open, High, Low, Close, Volume: ")
+        predValues = predValues.split(',')
+        stockOpenPrice = predValues[0]
+        stockHighPrice = predValues[1]
+        stockLowPrice = predValues[2]
+        stockClosePrice = predValues[3]
+        stockVolume = predValues[4]
         newX = np.array(([stockOpenPrice, stockHighPrice, stockLowPrice, stockClosePrice]), dtype = float)
-        newX = newX/np.amax(newX, axis=0)
+        newX_v = np.array([stockVolume], dtype=float)
+
+        if (max_x < np.amax(newX)):
+            max_x = np.amax(newX)
+        if (min_x > np.amin(newX)):
+            min_x = np.amin(newX)
+        if (max_xv < np.amax(newX_v)):
+            max_xv = np.amax(newX_v)
+        if (min_xv > np.amin(newX_v)):
+            min_xv = np.amin(newX_v)
+
+        #newX = (X-np.amin(X))/(np.amax(X)-np.amin(X))
+        #X_v = (X_v-np.amin(X_v))/(np.amax(X_v)-np.amin(X_v))
+
+        newX = (newX-min_x)/(max_x - min_x)
+        newX_v = (newX_v-min_xv)/(max_xv - min_xv)
+        newX = np.append(arr=newX, values=newX_v, axis=0)
+        print(newX)
+
         print (NN.forward(newX) * recover + min_sum)
 
     #Trainer = trainer()
