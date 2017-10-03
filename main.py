@@ -19,6 +19,10 @@ from matplotlib.figure import Figure
 import matplotlib.animation as animation
 from matplotlib import style
 
+import matplotlib.pyplot as plt
+
+
+
 #import tkinter
 import tkinter as tk
 from tkinter import ttk
@@ -39,6 +43,9 @@ if (index != ''):
     stock_url = 'https://www.alphavantage.co/query?function=SMA&symbol=' + index + '&interval=weekly&time_period=10&series_type=close&apikey=JE7IO792LHC3VYS5&datatype=csv'
     with urllib.request.urlopen(stock_url, context=ctx) as u, open('database/'+file_name, 'wb') as f:
         f.write(u.read())
+
+
+
 
 #https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=AAPL&interval=5min&outputsize=full&apikey=JE7IO792LHC3VYS5
 #import url of stock
@@ -102,6 +109,10 @@ X = mydata
 y = outputArr
 X_v = volume
 
+#plt.plot(y)
+#plt.ylabel('X values')
+#plt.show()
+
 max_x = np.amax(X)
 min_x = np.amin(X)
 max_xv = np.amax(X_v)
@@ -119,6 +130,9 @@ X = np.append(arr=X, values=X_v, axis=1)
 
 print (X)
 print (y)
+
+
+
 
 #AAPL data
 #print np.amax(mydata, axis = 0)
@@ -270,7 +284,7 @@ class trainer(object):
 
         params0 = self.N.getParams()
 
-        options = {'maxiter': 200, 'disp' : True} #BFGS
+        options = {'maxiter': 10000, 'disp' : True} #BFGS
         _res = optimize.minimize(self.costFunctionWrapper, params0, jac=True, method='BFGS', \
                                  args=(X, y), options=options, callback=self.callbackF)
 
